@@ -3,7 +3,7 @@
 ;;; Code:
 (add-to-list 'load-path (or (file-name-directory #$) (car load-path)))
 
-;;;### (autoloads nil "change-inner" "change-inner.el" (22440 45353
+;;;### (autoloads nil "change-inner" "change-inner.el" (22568 25915
 ;;;;;;  0 0))
 ;;; Generated autoloads from change-inner.el
 
