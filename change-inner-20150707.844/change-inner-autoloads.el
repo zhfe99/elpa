@@ -1,9 +1,9 @@
 ;;; change-inner-autoloads.el --- automatically extracted autoloads
 ;;
 ;;; Code:
-(add-to-list 'load-path (or (file-name-directory #$) (car load-path)))
+(add-to-list 'load-path (directory-file-name (or (file-name-directory #$) (car load-path))))
 
-;;;### (autoloads nil "change-inner" "change-inner.el" (22568 25915
+;;;### (autoloads nil "change-inner" "change-inner.el" (22755 14522
 ;;;;;;  0 0))
 ;;; Generated autoloads from change-inner.el
 
