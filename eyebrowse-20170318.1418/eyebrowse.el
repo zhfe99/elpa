@@ -589,7 +589,9 @@ is detected, extra key bindings will be set up with
                           (eyebrowse-switch-to-window-config slot)))
                       map))
                    (help-echo "mouse-1: Switch to indicated workspace")
-                   (caption (eyebrowse-format-slot window-config)))
+                   (caption (if (= slot current-slot)
+                                (concat "*" (eyebrowse-format-slot window-config))
+                              (eyebrowse-format-slot window-config))))
               (propertize caption 'face face 'slot slot
                           'mouse-face 'mode-line-highlight
                           'local-map keymap
