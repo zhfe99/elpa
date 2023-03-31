@@ -4,7 +4,7 @@
 
 ;; Author: Artur Malabarba <emacs@endlessparentheses.com>
 ;; URL: http://github.com/Malabarba/smart-mode-line
-;; Version: 2.10
+;; Version: 2.14
 ;; Package-Requires: ((emacs "24.3") (rich-minority "0.1.1"))
 ;; Keywords: mode-line faces themes
 ;; Prefix: sml
@@ -310,7 +310,7 @@
 (require 'cus-face)
 (require 'rich-minority)
 
-(defconst sml/version "2.10" "Version of the smart-mode-line.el package.")
+(defconst sml/version "2.13" "Version of the smart-mode-line.el package.")
 (defun sml/bug-report ()
   "Opens github issues page in a web browser. Please send me any bugs you find, and please include your Emacs and sml versions."
   (interactive)
@@ -367,6 +367,7 @@ set `sml/override-theme' to nil."
 (defvar erc-track-position-in-mode-line)
 (defvar sml/simplified nil
   "Temporary dynamic variable. Used for filling.")
+(defvar sml/active-background-color)
 
 (defvar sml/-debug nil
   "Whether debugging information should be printed.")
@@ -397,9 +398,9 @@ Set SYM to VAL."
   (if val (setq sml/shortener-func 'sml/do-shorten-directory)
     (setq sml/shortener-func 'sml/not-shorten-directory)))
 
-(define-obsolete-variable-alias 'sml/time-format 'display-time-format)
-(define-obsolete-variable-alias 'sml/show-time 'display-time-mode)
-(define-obsolete-variable-alias 'sml/override-theme 'sml/theme)
+(define-obsolete-variable-alias 'sml/time-format 'display-time-format "2.0.3")
+(define-obsolete-variable-alias 'sml/show-time 'display-time-mode "2.0.3")
+(define-obsolete-variable-alias 'sml/override-theme 'sml/theme "2.0.3")
 
 (defcustom sml/theme 'automatic
   "Defines which theme `smart-mode-line' should use.
@@ -514,6 +515,12 @@ If this variable is nil, nothing is displayed."
   :group 'smart-mode-line-others
   :package-version '(smart-mode-line . "1.16"))
 
+(defcustom sml/not-modified-char " "
+  "String that indicates if buffer is un-modified. Should be one SINGLE char."
+  :type 'string
+  :group 'smart-mode-line-others
+  :package-version '(smart-mode-line . "1.16"))
+
 (defcustom sml/show-trailing-N t
   "Whether the \"<N>\" suffix in buffer names should be displayed in the mode-line."
   :type 'boolean
@@ -578,6 +585,7 @@ parser applies that for you."
 
 (defcustom sml/prefix-face-list '((":SU:" sml/sudo)
                                   (":G" sml/git)
+                                  (sml/projectile-replacement-format sml/projectile)
                                   ("" sml/prefix))
   "List of (STRING FACE) pairs used by `sml/propertize-prefix'.
 
@@ -601,6 +609,8 @@ separately, by setting this variable to a cons cell of integers:
   :type '(choice integer (cons (integer :tag "Minimum width")
                                (integer :tag "Maximum width")))
   :group 'smart-mode-line-path-and-prefix)
+
+(defvaralias 'sml/path-width 'sml/name-width)
 
 (defcustom sml/shorten-directory t
   "Should directory name be shortened to fit width?
@@ -933,19 +943,24 @@ If you want it to show the backend, just set it to t."
 (defvar sml/projectile-loaded-p nil "Non-nil if projectile has been loaded.")
 
 (defcustom sml/pos-id-separator " "
-  "Miscellaneous mode-line construct.")
+  "Miscellaneous mode-line construct."
+  :type 'string)
 (put 'sml/pos-id-separator 'risky-local-variable t)
 (defcustom sml/pre-modes-separator " "
-  "Miscellaneous mode-line construct.")
+  "Miscellaneous mode-line construct."
+  :type 'string)
 (put 'sml/pre-modes-separator 'risky-local-variable t)
 (defcustom sml/pre-id-separator ""
-  "Miscellaneous mode-line construct.")
+  "Miscellaneous mode-line construct."
+  :type 'string)
 (put 'sml/pre-id-separator 'risky-local-variable t)
 (defcustom sml/pre-minor-modes-separator ""
-  "Miscellaneous mode-line construct.")
+  "Miscellaneous mode-line construct."
+  :type 'string)
 (put 'sml/pre-minor-modes-separator 'risky-local-variable t)
 (defcustom sml/pos-minor-modes-separator ""
-  "Miscellaneous mode-line construct.")
+  "Miscellaneous mode-line construct."
+  :type 'string)
 (put 'sml/pos-minor-modes-separator 'risky-local-variable t)
 
 (defun sml/-automatically-decide-theme ()
@@ -1071,6 +1086,13 @@ the mode-line will be setup."
   (add-hook 'comint-output-filter-functions 'sml/generate-buffer-identification)
   (add-hook 'eshell-directory-change-hook 'sml/generate-buffer-identification)
 
+  ;; ;; Term support - Disabled for now because of Issue#198
+  ;; (defadvice term-command-hook (after sml/term-advice-1 activate)
+  ;;   (sml/generate-buffer-identification))
+
+  ;; (defadvice term-handle-ansi-terminal-messages (after sml/term-advice-2 activate)
+  ;;   (sml/generate-buffer-identification))
+
   ;; Dired overrides the buffer-identification (which we would
   ;; normally respect) but doesn't actually do anything useful with
   ;; it, so we overoverride back.
@@ -1113,10 +1135,7 @@ found to match the current file path."
          :group 'smart-mode-line-others
          :package-version '(smart-mode-line . "2.4.1"))
        (defface sml/projectile '((t :inherit sml/git)) "" :group 'smart-mode-line-faces)
-       (add-to-list 'sml/prefix-regexp (format (regexp-quote sml/projectile-replacement-format) ".*"))
-       (add-to-list 'sml/prefix-face-list
-                    (list (format (regexp-quote sml/projectile-replacement-format) ".*")
-                          'sml/projectile))))
+       (add-to-list 'sml/prefix-regexp (format (regexp-quote sml/projectile-replacement-format) ".*"))))
 
   ;; vc-mode
   (eval-after-load "vc-hooks"
@@ -1168,7 +1187,9 @@ Might implement a quick flash eventually."
 
   (unless (and (boundp 'erc-track-position-in-mode-line)
                (null erc-track-position-in-mode-line))
-    (setq erc-track-position-in-mode-line t)))
+    (setq erc-track-position-in-mode-line t))
+
+  (run-hooks 'sml/after-setup-hook))
 
 ;;;###autoload
 (defalias 'smart-mode-line-enable #'sml/setup)
@@ -1301,7 +1322,7 @@ Also sets SYMBOL to VALUE."
    (buffer-read-only (propertize sml/read-only-char
                                  'face 'sml/read-only
                                  'help-echo "Read-Only Buffer"))
-   (t (propertize " " 'face 'sml/not-modified))))
+   (t (propertize sml/not-modified-char 'face 'sml/not-modified))))
 
 (defmacro sml/propertize-position (s face help)
   "Propertize string S as a line/column number, using FACE and help-echo HELP."
@@ -1346,10 +1367,11 @@ doesn't want any buffer-id."
 Argument IGNORED is ignored."
   (setq sml/name-width-old sml/name-width)
   (setq sml/buffer-identification-filling nil)
-  (when (or ;; Only calculate all this if it will actually be used
-         (equal sml/mode-line-buffer-identification mode-line-buffer-identification)
-         (member (cadr sml/mode-line-buffer-identification) mode-line-buffer-identification)
-         (member sml/mode-line-buffer-identification mode-line-buffer-identification))
+  (when (and (listp mode-line-buffer-identification)
+             (or ;; Only calculate all this if it will actually be used
+              (equal sml/mode-line-buffer-identification mode-line-buffer-identification)
+              (member (cadr sml/mode-line-buffer-identification) mode-line-buffer-identification)
+              (member sml/mode-line-buffer-identification mode-line-buffer-identification)))
     (setq sml/buffer-identification
           (let* ((dir (sml/replacer (abbreviate-file-name (sml/get-directory))))
                  (sml/use-projectile-p (unless (or (not sml/projectile-loaded-p)
@@ -1400,7 +1422,8 @@ To be used in mapcar and accumulate results."
 
    ;;;; mode-line-position
    ;; Color the position percentage
-   ((sml/is-%p-p el)
+   ((or (sml/is-%p-p el)
+        (and (listp el) (memq 'mode-line-percent-position el)))
     `(sml/position-percentage-format
       (-3 (:propertize (:eval sml/position-percentage-format)
                        local-map ,mode-line-column-line-number-mode-map
@@ -1438,7 +1461,10 @@ mouse-3: Describe current input method"))
    ;; Color the mode line process
    ((or (equal el '("" mode-line-process))
         (equal (car (cdr-safe el)) '("" mode-line-process)))
-    `(:propertize ("" mode-line-process) face sml/process))
+    '(mode-line-process
+      (:eval (let ((text (format-mode-line mode-line-process)))
+               (add-face-text-property 0 (length text) 'sml/process t text)
+               text))))
    ;; Color the mode name, without changing other properties
    ((and (listp el)
          (equal (car el) :propertize)
@@ -1511,10 +1537,12 @@ duplicated buffer names) from being displayed."
     0))
 
 ;;; Patch, in case the user is using the wrong variable.
-(when (boundp 'sml/hidden-modes)
-  (message "[smart-mode-line] Warning: `sml/hidden-modes' is obsolete, use `rm-blacklist' instead")
-  (setq rm-blacklist sml/hidden-modes))
-(define-obsolete-variable-alias 'sml/hidden-modes 'rm-blacklist)
+(defvar sml/-hidden-modes-bound-by-user
+  (bound-and-true-p sml/hidden-modes))
+(when sml/-hidden-modes-bound-by-user
+  (setq sml/-hidden-modes-bound-by-user nil)
+  (setq rm-blacklist (bound-and-true-p sml/hidden-modes)))
+(define-obsolete-variable-alias 'sml/hidden-modes 'rm-blacklist "2.9")
 
 (defun sml/generate-minor-modes ()
   "Extracts all rich strings necessary for the minor mode list."
@@ -1567,7 +1595,12 @@ duplicated buffer names) from being displayed."
 (defun sml/propertize-prefix (prefix)
   "Set the color of PREFIX according to its contents."
   (cl-loop for pair in sml/prefix-face-list
-           if (string-match (car pair) prefix)
+           if (let* ((c (car pair))
+                     (s (if (symbolp c)
+                            (when (boundp c) (symbol-value c))
+                          c)))
+                (when s
+                  (string-match (format (regexp-quote s) ".*") prefix)))
            return (propertize prefix 'face (car (cdr pair)))))
 
 (defun sml/get-directory ()
@@ -1580,7 +1613,7 @@ duplicated buffer names) from being displayed."
     ((eq major-mode 'dired-mode)
      (replace-regexp-in-string "/[^/]*/$" "/" default-directory))
     ((and (symbolp major-mode)
-          (member major-mode '(shell-mode eshell-mode)))
+          (member major-mode '(shell-mode eshell-mode term-mode)))
      default-directory)
     ;; In indirect buffers, buffer-file-name is nil. The correct value is
     ;; retrieved from the base buffer.
@@ -1614,6 +1647,14 @@ Used by `sml/strip-prefix' and `sml/get-prefix'."
       in
     (sml/replacer-raw in)))
 
+(defcustom sml/fallback-on-buffer-identification nil
+  "Whether to fallback on regular buffer-identification.
+Defines the what should be displayed in the buffer identification
+if it is unchanged by the entries in `sml/replacer-regexp-list'.
+If the value is nil, use the sml behaviour (full file name).
+Otherwise, use the default Emacs behaviour (usually just `buffer-name')."
+  :type 'boolean)
+
 (defun sml/replacer-raw (in)
   "Run on the string IN the replacements from `sml/replacer-regexp-list'.
 
@@ -1629,9 +1670,14 @@ project name first."
     (when (string= out in)
       (dolist (cur sml/replacer-regexp-list)
         (setq out (replace-regexp-in-string (car cur) (car (cdr cur)) out))))
+    (when (and sml/fallback-on-buffer-identification
+               (string= out in))
+      (setq out (format-mode-line (propertized-buffer-identification "%12b"))))
     ;; Try truename replacements
     (when (string= out in)
-      (let* ((true-in (abbreviate-file-name (file-truename in)))
+      (let* ((true-in (abbreviate-file-name (if (file-remote-p in)
+                                                in
+                                              (file-truename in))))
              (true-out true-in))
         (dolist (cur sml/replacer-regexp-list)
           (setq true-out (replace-regexp-in-string
