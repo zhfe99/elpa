@@ -327,7 +327,7 @@ Remove DEF from `counsel-M-x' list."
     (ivy-define-key map [mouse-3] 'ivy-mouse-dispatching-done)
     (ivy-define-key map (kbd "C-M-m") 'ivy-call)
     (ivy-define-key map (kbd "C-j") 'ivy-alt-done)
-    (ivy-define-key map (kbd "C-M-j") 'ivy-immediate-done)
+    (ivy-define-key map (kbd "C-k") 'ivy-immediate-done)
     (ivy-define-key map (kbd "TAB") 'ivy-partial-or-done)
     (ivy-define-key map [remap next-line] 'ivy-next-line)
     (ivy-define-key map [remap previous-line] 'ivy-previous-line)
