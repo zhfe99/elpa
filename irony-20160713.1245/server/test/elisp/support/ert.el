@@ -55,7 +55,7 @@
 ;;; Code:
 
 (eval-when-compile
-  (require 'cl))
+  (require 'cl-lib))
 (require 'button)
 (require 'debug)
 (require 'easymenu)
@@ -434,7 +434,7 @@ DATA is displayed to the user and should state the reason of the failure."
                                      (list :explanation
                                            (apply -explainer- ,args)))))
                          value)
-               ,value))))))))
+               ,value)))))))
 
 (defun ert--expand-should (whole form inner-expander)
   "Helper function for the `should' macro and its variants.
@@ -653,13 +653,13 @@ key/value pairs in each list does not matter."
          (keys-b (ert--significant-plist-keys b))
          (keys-in-a-not-in-b (ert--set-difference-eq keys-a keys-b))
          (keys-in-b-not-in-a (ert--set-difference-eq keys-b keys-a)))
-    (flet ((explain-with-key (key)
-             (let ((value-a (plist-get a key))
-                   (value-b (plist-get b key)))
-               (assert (not (equal value-a value-b)) t)
-               `(different-properties-for-key
-                 ,key ,(ert--explain-not-equal-including-properties value-a
-                                                                    value-b)))))
+    (cl-flet ((explain-with-key (key)
+                (let ((value-a (plist-get a key))
+                      (value-b (plist-get b key)))
+                  (assert (not (equal value-a value-b)) t)
+                  `(different-properties-for-key
+                    ,key ,(ert--explain-not-equal-including-properties value-a
+                                                                       value-b)))))
       (cond (keys-in-a-not-in-b
              (explain-with-key (first keys-in-a-not-in-b)))
             (keys-in-b-not-in-a
@@ -1237,27 +1237,24 @@ Also changes the counters in STATS to match."
          (results (ert--stats-test-results stats))
          (old-test (aref tests pos))
          (map (ert--stats-test-map stats)))
-    (flet ((update (d)
-             (if (ert-test-result-expected-p (aref tests pos)
-                                             (aref results pos))
-                 (etypecase (aref results pos)
-                   (ert-test-passed (incf (ert--stats-passed-expected stats) d))
-                   (ert-test-failed (incf (ert--stats-failed-expected stats) d))
-                   (null)
-                   (ert-test-aborted-with-non-local-exit))
-               (etypecase (aref results pos)
-                 (ert-test-passed (incf (ert--stats-passed-unexpected stats) d))
-                 (ert-test-failed (incf (ert--stats-failed-unexpected stats) d))
-                 (null)
-                 (ert-test-aborted-with-non-local-exit)))))
-      ;; Adjust counters to remove the result that is currently in stats.
+    (cl-flet ((update (d)
+                (if (ert-test-result-expected-p (aref tests pos)
+                                                (aref results pos))
+                    (etypecase (aref results pos)
+                      (ert-test-passed (incf (ert--stats-passed-expected stats) d))
+                      (ert-test-failed (incf (ert--stats-failed-expected stats) d))
+                      (null)
+                      (ert-test-aborted-with-non-local-exit))
+                  (etypecase (aref results pos)
+                    (ert-test-passed (incf (ert--stats-passed-unexpected stats) d))
+                    (ert-test-failed (incf (ert--stats-failed-unexpected stats) d))
+                    (null)
+                    (ert-test-aborted-with-non-local-exit))))
       (update -1)
-      ;; Put new test and result into stats.
       (setf (aref tests pos) test
             (aref results pos) result)
       (remhash (ert--stats-test-key old-test) map)
       (setf (gethash (ert--stats-test-key test) map) pos)
-      ;; Adjust counters to match new result.
       (update +1)
       nil)))
 
